@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "celery-redis-production-pitfalls"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["patterns"]
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "PERF", "PTH", "SIM", "RUF", "TRY", "EM", "TC", "S", "N"]
+ignore = ["ANN", "D", "ERA", "T20", "COM812", "ISC001", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "PLR2004", "SLF001", "S105", "S106", "S108"]
+"patterns/*" = ["PLR2004", "UP042", "UP047", "N802", "N818", "TC002", "TRY300", "S311"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+ignore_errors = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["patterns"]
