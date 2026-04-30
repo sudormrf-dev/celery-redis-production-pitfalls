@@ -29,7 +29,6 @@ from patterns.task_config import (
     TaskConfigBuilder,
 )
 
-
 # ---------------------------------------------------------------------------
 # Simulated task executor (no real Celery required)
 # ---------------------------------------------------------------------------
