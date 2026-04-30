@@ -14,13 +14,26 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from patterns.result_backend import BackendType, ResultBackend, ResultBackendConfig, TaskResult, TaskState
-from patterns.task_config import AckPolicy, BackoffStrategy, QueuePriority, RetryConfig, TaskConfig, TaskConfigBuilder
+from patterns.result_backend import (
+    BackendType,
+    ResultBackend,
+    ResultBackendConfig,
+    TaskResult,
+    TaskState,
+)
+from patterns.task_config import (
+    BackoffStrategy,
+    QueuePriority,
+    RetryConfig,
+    TaskConfig,
+    TaskConfigBuilder,
+)
 
 
 # ---------------------------------------------------------------------------
 # Simulated task executor (no real Celery required)
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class SimulatedTask:
@@ -42,7 +55,9 @@ class SimulatedTask:
 
         if hang:
             # Correct: soft_time_limit raises SoftTimeLimitExceeded → retry or fail fast
-            result.mark_failure(f"SoftTimeLimitExceeded after {self.config.soft_time_limit}s — retrying")
+            result.mark_failure(
+                f"SoftTimeLimitExceeded after {self.config.soft_time_limit}s — retrying"
+            )
             return result
 
         if should_fail:
@@ -55,7 +70,9 @@ class SimulatedTask:
                     f"(strategy={self.config.retry.strategy.value})"
                 )
             else:
-                result.mark_failure(f"Exhausted {self.config.retry.max_retries} retries")
+                result.mark_failure(
+                    f"Exhausted {self.config.retry.max_retries} retries"
+                )
             return result
 
         result.mark_success({"status": "ok", "task": self.config.name}, runtime=0.42)
@@ -65,6 +82,7 @@ class SimulatedTask:
 # ---------------------------------------------------------------------------
 # Anti-pattern 1: Missing retry
 # ---------------------------------------------------------------------------
+
 
 def demo_missing_retry() -> None:
     """Anti-pattern: task crashes with no retry → permanent data loss."""
@@ -93,13 +111,14 @@ def demo_missing_retry() -> None:
 # Anti-pattern 2: No timeout
 # ---------------------------------------------------------------------------
 
+
 def demo_no_timeout() -> None:
     """Anti-pattern: task hangs forever, blocking a worker slot."""
     print("\n--- Anti-pattern 2: No timeout ---")
     bad_config = TaskConfig(
         name="fetch_external_api",
-        time_limit=0,      # no hard limit
-        soft_time_limit=0, # no soft limit
+        time_limit=0,  # no hard limit
+        soft_time_limit=0,  # no soft limit
     )
     task = SimulatedTask(config=bad_config)
     result = task.run(hang=True)
@@ -115,12 +134,15 @@ def demo_no_timeout() -> None:
     task2 = SimulatedTask(config=good_config)
     result2 = task2.run(hang=True)
     print(f"  [GOOD] state={result2.state.value}  error={result2.error}")
-    print(f"         hard_limit={good_config.time_limit}s  soft_limit={good_config.soft_time_limit}s")
+    print(
+        f"         hard_limit={good_config.time_limit}s  soft_limit={good_config.soft_time_limit}s"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Anti-pattern 3: Missing rate limiting
 # ---------------------------------------------------------------------------
+
 
 def demo_missing_rate_limit() -> None:
     """Anti-pattern: burst of tasks saturates Redis connection pool."""
@@ -136,21 +158,24 @@ def demo_missing_rate_limit() -> None:
     print("--- Fix: explicit rate limit ---")
     good_config = (
         TaskConfigBuilder("send_notification")
-        .rate_limit("100/m")   # max 100 tasks per minute
+        .rate_limit("100/m")  # max 100 tasks per minute
         .retries(2)
         .build()
     )
-    print(f"  [GOOD] rate_limit={good_config.rate_limit!r}  — Redis protected from burst")
+    print(
+        f"  [GOOD] rate_limit={good_config.rate_limit!r}  — Redis protected from burst"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Anti-pattern 4: Ignoring task state (fire and forget)
 # ---------------------------------------------------------------------------
 
+
 def demo_ignoring_task_state(backend: ResultBackend) -> None:
     """Anti-pattern: dispatch task, never check result → silent failures."""
     print("\n--- Anti-pattern 4: Ignoring task state ---")
-    bad_config = TaskConfig(
+    TaskConfig(
         name="resize_image",
         ignore_result=True,  # result never stored → failures invisible
     )
@@ -158,26 +183,25 @@ def demo_ignoring_task_state(backend: ResultBackend) -> None:
     bad_result = TaskResult(task_id=task_id)
     bad_result.mark_failure("S3 upload failed: connection reset")
     # With ignore_result=True the backend is never consulted — failure is silent.
-    print(f"  [BAD]  ignore_result=True → failure swallowed silently")
+    print("  [BAD]  ignore_result=True → failure swallowed silently")
     print(f"         actual state would be: {bad_result.state.value}")
 
     print("--- Fix: track state in result backend ---")
-    good_config = (
-        TaskConfigBuilder("resize_image")
-        .retries(3)
-        .build()
-    )
+    good_config = TaskConfigBuilder("resize_image").retries(3).build()
     task = SimulatedTask(config=good_config)
     result = task.run(should_fail=True)
     backend.store(result)
     stored = backend.get(result.task_id)
     assert stored is not None
-    print(f"  [GOOD] state={stored.state.value}  retries={stored.retries}  tracked in backend")
+    print(
+        f"  [GOOD] state={stored.state.value}  retries={stored.retries}  tracked in backend"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Anti-pattern 5: No result expiry → memory leak
 # ---------------------------------------------------------------------------
+
 
 def demo_no_result_expiry(backend: ResultBackend) -> None:
     """Anti-pattern: results accumulate in Redis until OOM."""
@@ -186,7 +210,9 @@ def demo_no_result_expiry(backend: ResultBackend) -> None:
         backend_type=BackendType.REDIS,
         result_expires=0,  # 0 = never expire → unbounded growth
     )
-    print(f"  [BAD]  result_expires={bad_backend_cfg.result_expires}  (never expires → memory leak)")
+    print(
+        f"  [BAD]  result_expires={bad_backend_cfg.result_expires}  (never expires → memory leak)"
+    )
 
     print("--- Fix: bounded TTL + periodic cleanup ---")
     good_backend_cfg = ResultBackendConfig(
@@ -209,6 +235,7 @@ def demo_no_result_expiry(backend: ResultBackend) -> None:
 # ---------------------------------------------------------------------------
 # Dead letter queue simulation
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class DeadLetterQueue:
@@ -251,12 +278,15 @@ def demo_dead_letter_queue(backend: ResultBackend) -> None:
         print(f"  Attempt {attempt}: {result.state.value}  ({result.error})")
 
     dead = dlq.drain()
-    print(f"  DLQ contains {len(dead)} item(s): {dead[0]['task_name']} → {dead[0]['error']}")
+    print(
+        f"  DLQ contains {len(dead)} item(s): {dead[0]['task_name']} → {dead[0]['error']}"
+    )
 
 
 # ---------------------------------------------------------------------------
 # Monitoring summary
 # ---------------------------------------------------------------------------
+
 
 def demo_monitoring(backend: ResultBackend) -> None:
     """Show how to surface pipeline health metrics."""
@@ -276,6 +306,7 @@ def demo_monitoring(backend: ResultBackend) -> None:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     """Run all anti-pattern demonstrations."""

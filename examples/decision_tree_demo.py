@@ -52,6 +52,7 @@ class Scenario:
 # Decision logic
 # ---------------------------------------------------------------------------
 
+
 def decide(
     duration_ms: int,
     survives_restart: bool,
@@ -180,31 +181,43 @@ SCENARIOS: list[Scenario] = [
 # Interactive decision tree
 # ---------------------------------------------------------------------------
 
+
 def run_decision_tree(scenario_params: list[dict[str, Any]]) -> None:
     """Walk through the decision tree for a list of parameter dicts."""
     print("\n" + "=" * 60)
     print("  Decision Tree: asyncio vs BackgroundTasks vs Celery")
     print("=" * 60)
 
-    headers = ["Scenario", "Duration", "Survive?", "Retry?", "Distributed?", "Recommended"]
+    headers = [
+        "Scenario",
+        "Duration",
+        "Survive?",
+        "Retry?",
+        "Distributed?",
+        "Recommended",
+    ]
     rows: list[tuple[str, ...]] = []
 
     for params in scenario_params:
         approach, reason = decide(**{k: v for k, v in params.items() if k != "label"})
-        rows.append((
-            params["label"],
-            f"{params['duration_ms']} ms",
-            "yes" if params["survives_restart"] else "no",
-            "yes" if params["needs_retry"] else "no",
-            "yes" if params["distributed"] else "no",
-            approach.value,
-        ))
+        rows.append(
+            (
+                params["label"],
+                f"{params['duration_ms']} ms",
+                "yes" if params["survives_restart"] else "no",
+                "yes" if params["needs_retry"] else "no",
+                "yes" if params["distributed"] else "no",
+                approach.value,
+            )
+        )
         print(f"\n  [{params['label']}]")
         print(f"    → {approach.value}")
         print(f"    {reason}")
 
     print("\n" + "─" * 60)
-    col_w = [max(len(h), max(len(r[i]) for r in rows)) + 2 for i, h in enumerate(headers)]
+    col_w = [
+        max(len(h), max(len(r[i]) for r in rows)) + 2 for i, h in enumerate(headers)
+    ]
     header_line = "".join(h.ljust(col_w[i]) for i, h in enumerate(headers))
     print("  " + header_line)
     print("  " + "-" * sum(col_w))
@@ -215,6 +228,7 @@ def run_decision_tree(scenario_params: list[dict[str, Any]]) -> None:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+
 
 def main() -> None:
     """Run scenario recommendations and decision tree."""
@@ -227,53 +241,55 @@ def main() -> None:
         scenario.print_recommendation()
 
     # Decision tree table for quick comparison
-    run_decision_tree([
-        {
-            "label": "Image resize",
-            "duration_ms": 3_000,
-            "survives_restart": True,
-            "needs_retry": True,
-            "distributed": False,
-            "rate_limited": False,
-            "in_async_context": False,
-        },
-        {
-            "label": "Send email",
-            "duration_ms": 800,
-            "survives_restart": True,
-            "needs_retry": True,
-            "distributed": False,
-            "rate_limited": True,
-            "in_async_context": False,
-        },
-        {
-            "label": "Redis counter",
-            "duration_ms": 1,
-            "survives_restart": False,
-            "needs_retry": False,
-            "distributed": False,
-            "rate_limited": False,
-            "in_async_context": True,
-        },
-        {
-            "label": "ML inference",
-            "duration_ms": 45_000,
-            "survives_restart": True,
-            "needs_retry": True,
-            "distributed": True,
-            "rate_limited": False,
-            "in_async_context": False,
-        },
-        {
-            "label": "Audit log",
-            "duration_ms": 5,
-            "survives_restart": False,
-            "needs_retry": False,
-            "distributed": False,
-            "rate_limited": False,
-            "in_async_context": False,
-        },
-    ])
+    run_decision_tree(
+        [
+            {
+                "label": "Image resize",
+                "duration_ms": 3_000,
+                "survives_restart": True,
+                "needs_retry": True,
+                "distributed": False,
+                "rate_limited": False,
+                "in_async_context": False,
+            },
+            {
+                "label": "Send email",
+                "duration_ms": 800,
+                "survives_restart": True,
+                "needs_retry": True,
+                "distributed": False,
+                "rate_limited": True,
+                "in_async_context": False,
+            },
+            {
+                "label": "Redis counter",
+                "duration_ms": 1,
+                "survives_restart": False,
+                "needs_retry": False,
+                "distributed": False,
+                "rate_limited": False,
+                "in_async_context": True,
+            },
+            {
+                "label": "ML inference",
+                "duration_ms": 45_000,
+                "survives_restart": True,
+                "needs_retry": True,
+                "distributed": True,
+                "rate_limited": False,
+                "in_async_context": False,
+            },
+            {
+                "label": "Audit log",
+                "duration_ms": 5,
+                "survives_restart": False,
+                "needs_retry": False,
+                "distributed": False,
+                "rate_limited": False,
+                "in_async_context": False,
+            },
+        ]
+    )
 
     print("\n" + "=" * 60)
     print("  Decision tree complete.")
